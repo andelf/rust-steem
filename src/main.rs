@@ -10,6 +10,7 @@ use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use crypto::{aes_decrypt, city_hash_crc_128, sha256, sha512};
 
 pub mod crypto;
+pub mod message;
 
 const REMOTE_ADDR: &str = "node.mahdiyari.info:2001";
 // const REMOTE_ADDR: &str = "192.168.1.162:2001";
@@ -84,7 +85,59 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("packet payload size = {}", size);
     println!("packet message type = {}", msg_type);
 
-    // let payload = &decrypted[8..];
+    let payload = &decrypted[8..];
+
+    let mut cursor = 0;
+
+    println!(
+        "user_agent: {:?}",
+        String::from_utf8_lossy(&payload[1..1 + payload[cursor] as usize])
+    );
+    cursor += 1 + payload[cursor] as usize;
+
+    println!(
+        "core_protocol_version: {}",
+        LE::read_u32(&payload[cursor..cursor + 4]),
+    );
+    cursor += 4;
+
+    println!(
+        "inbound_address: {:?}",
+        payload[cursor..cursor + 4].iter().rev().collect::<Vec<_>>()
+    );
+    cursor += 4;
+
+    println!(
+        "inbound_port: {}",
+        LE::read_u16(&payload[cursor..cursor + 2]),
+    );
+    cursor += 2;
+
+    println!(
+        "outbound_port: {}",
+        LE::read_u16(&payload[cursor..cursor + 2]),
+    );
+    cursor += 2;
+
+    println!(
+        "node_public_key: {:?}",
+        hex::encode(&payload[cursor..cursor + 33])
+    );
+    cursor += 33;
+
+    println!(
+        "signed_shared_secret: {:?}",
+        hex::encode(&payload[cursor..cursor + 65])
+    );
+    cursor += 65;
+
+    let user_data_raw = &payload[cursor..];
+
+    let user_data = message::parse_variant(user_data_raw);
+    println!(
+        "user_data =>\n{}",
+        serde_json::to_string_pretty(&user_data)?
+    );
 
     Ok(())
 }
