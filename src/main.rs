@@ -1,27 +1,28 @@
 use byteorder::{ByteOrder, LE};
+use secp256k1::ffi;
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use std::error::Error;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
-// secp256k1_ec_pubkey_tweak_mul;
-use secp256k1::ffi;
-// use secp256k1::key::ONE_KEY;
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
-
+use std::env;
 use crypto::{aes_decrypt, city_hash_crc_128, sha256, sha512};
 
 pub mod crypto;
+#[allow(unused_imports, dead_code)]
 pub mod message;
 
-const REMOTE_ADDR: &str = "node.mahdiyari.info:2001";
+// const REMOTE_ADDR: &str = "node.mahdiyari.info:2001";
 // const REMOTE_ADDR: &str = "192.168.1.162:2001";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let remote_addr = env::args().skip(1).next().expect("usage: cargo run -- ip:addr");
+
     let secp = Secp256k1::new();
-    let mut stream = TcpStream::connect(REMOTE_ADDR).await?;
+    let mut stream = TcpStream::connect(&remote_addr).await?;
     let mut rng = rand::thread_rng();
 
-    //let my_priv_key = ONE_KEY;
+    // let my_priv_key = secp256k1::key::ONE_KEY; // :) no need to tweak
     let my_priv_key = SecretKey::new(&mut rng);
     let my_pub_key = PublicKey::from_secret_key(&secp, &my_priv_key);
 
@@ -56,7 +57,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             )
         } != 0
     );
-    println!("! tweek pub key  => {:?}", remote_pub_key);
+    println!("! tweak pub key  => {:?}", remote_pub_key);
 
     // 64 bytes
     let shared_secret = sha512(&remote_pub_key.serialize()[1..]);
@@ -82,8 +83,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("! header <= {}", hex::encode(&decrypted[..8]));
     let size = LE::read_u32(&decrypted[..4]);
     let msg_type = LE::read_u32(&decrypted[4..8]);
-    println!("packet payload size = {}", size);
-    println!("packet message type = {}", msg_type);
+    println!("! packet payload size = {}", size);
+    println!("! packet message type = {}", msg_type);
 
     let payload = &decrypted[8..];
 

@@ -1,6 +1,5 @@
 use bytes::Buf;
 use serde_json::json;
-use serde_json::Value;
 use std::net::Ipv4Addr;
 use std::str;
 
